@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHALAPATHI Work App</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="menu-btn" onclick="toggleMenu()">☰</div>
+
+<div id="menu" class="menu">
+    <a onclick="go('home')">Home</a>
+    <a onclick="go('work')">Work Log</a>
+    <a onclick="go('calendar')">Calendar</a>
+    <a onclick="go('allow')">Allowance</a>
+    <a onclick="go('receive')">Received</a>
+    <a onclick="go('salary')">Salary Sheet</a>
+    <a onclick="go('admin')">Admin</a>
+</div>
+
+<h2 class="title">CHALAPATHI</h2>
+
+<div id="home" class="page active">
+    <div class="card">
+        <input id="uid" placeholder="Enter User ID" value="">
+        <div class="flex-row">
+            <button class="btn-in" onclick="punchIn()">Punch In</button>
+            <button class="btn-out" onclick="punchOut()">Punch Out</button>
+        </div>
+        <p id="msg"></p>
+    </div>
+</div>
+
+<div id="work" class="page">
+    <h3>Work History</h3>
+    <div class="table-container">
+        <table id="workTable"></table>
+    </div>
+    <div id="delWorkBox" style="display:none;"><hr><h3>Deleted Work</h3><table id="deletedWorkTable"></table></div>
+</div>
+
+<div id="calendar" class="page">
+    <div class="cal-filters">
+        <select id="calMonth" onchange="drawCalendar()"></select>
+        <select id="calYear" onchange="drawCalendar()"></select>
+    </div>
+    <div class="calendar-wrapper">
+        <div class="cal-days-header"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
+        <div id="calGrid"></div>
+    </div>
+    <div id="dayInfoCard" class="card" style="display:none; margin-top:10px;"><h4 id="selDate"></h4><p id="selDetails"></p></div>
+</div>
+
+<div id="allow" class="page"><div class="card"><input id="atype" placeholder="Type" value=""><input id="aamt" type="number" placeholder="Amount" value=""><button onclick="addSalData('allow')">Add</button></div></div>
+<div id="receive" class="page"><div class="card"><input id="rtype" placeholder="Source" value=""><input id="ramt" type="number" placeholder="Amount" value=""><button onclick="addSalData('recv')">Add</button></div></div>
+
+<div id="salary" class="page">
+    <h3>Financial Statement</h3>
+    <div class="table-container"><table id="salaryTable"></table></div>
+    <div id="delSalBox" style="display:none;"><hr><h3>Deleted Salary Data</h3><table id="deletedSalTable"></table></div>
+</div>
+
+<div id="admin" class="page">
+    <div id="loginSection">
+        <input id="user" placeholder="Admin Username" value=""><input id="pass" type="password" placeholder="Password" value=""><button onclick="login()">Login</button>
+    </div>
+    <div id="adminSettings" style="display:none;">
+        <input id="mSalInput" type="number" placeholder="Monthly Salary" value=""><input id="otRInput" type="number" placeholder="OT Rate" value=""><button onclick="saveRates()">Save Rates</button>
+        <button class="btn-out" onclick="logout()">Logout</button>
+    </div>
+</div>
+
+<div id="adminPortal" onclick="go('adminControl')" style="display:none;">⚙️</div>
+<div id="adminControl" class="page">
+    <h3>Master Edit Access</h3>
+    <div id="masterList"></div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
