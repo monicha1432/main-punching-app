@@ -1,25 +1,51 @@
-body { font-family: sans-serif; margin: 0; background: #1a2a6c; color: white; text-align: center; }
-.page { display: none; padding: 15px; }
+:root { 
+    --pri: #f27121; 
+    --suc: #2ecc71; 
+    --dan: #e74c3c; 
+    --bg: #1a2a6c; 
+}
+
+body { font-family: sans-serif; margin: 0; background: var(--bg); color: white; text-align: center; }
+
+.menu { position: fixed; top: 0; width: 240px; height: 100%; background: #000; transition: 0.3s; z-index: 1000; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
+.menu a { display: block; padding: 18px; color: white; text-decoration: none; border-bottom: 1px solid #222; text-align: left; cursor: pointer; }
+.menu-btn { position: fixed; top: 15px; left: 15px; font-size: 28px; cursor: pointer; z-index: 1001; background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 8px; }
+
+.page { display: none; padding: 20px; padding-top: 80px; }
 .active { display: block; }
-.card { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; margin: 10px auto; width: 90%; }
-.menu { position: fixed; left: -250px; top: 0; width: 220px; height: 100%; background: #000; transition: 0.3s; z-index: 1000; }
-.menu a { display: block; padding: 15px; color: white; text-decoration: none; border-bottom: 1px solid #222; cursor: pointer; text-align: left; }
-.menu-btn { position: fixed; top: 15px; left: 15px; font-size: 24px; cursor: pointer; z-index: 1001; }
-input, select { width: 85%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none; background: white; color: black; }
-button { padding: 8px 15px; border-radius: 5px; border: none; background: #f27121; color: white; cursor: pointer; font-weight: bold; }
-.btn-in { background: #2ecc71; } .btn-out { background: #e74c3c; }
-#msg { height: 20px; margin-top: 10px; font-weight: bold; color: #2ecc71; }
-.calendar-wrapper { background: white; color: black; border-radius: 8px; margin: 0 auto; width: 100%; max-width: 350px; }
-.cal-days-header { display: grid; grid-template-columns: repeat(7, 1fr); background: #eee; padding: 5px 0; font-size: 11px; font-weight: bold; }
-#calGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #ddd; }
-.day { aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; background: white; font-size: 13px; cursor: pointer; }
-.sun { background: #ff4d4d !important; color: white; }
-.present { background: #2ecc71 !important; color: white; }
-.sun-work { background: #3498db !important; color: white; }
-.table-container { overflow-x: auto; background: white; border-radius: 5px; margin-top: 10px; }
-table { width: 100%; color: black; border-collapse: collapse; font-size: 10px; }
-th, td { padding: 6px; border: 1px solid #ddd; text-align: center; }
-.total-row { background: #f0f0f0 !important; font-weight: bold; border-top: 2px solid #000; }
-#adminPortal { position: fixed; bottom: 20px; right: 20px; font-size: 30px; cursor: pointer; z-index: 999; background: white; border-radius: 50%; padding: 5px; }
-.m-card { background: white; color: black; margin-bottom: 10px; padding: 10px; border-radius: 8px; text-align: left; border-left: 5px solid #f27121; }
-.m-section-title { background: #f27121; color: white; padding: 5px; margin: 15px 0 5px 0; border-radius: 4px; font-size: 14px; }
+.card { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; margin: 10px auto; width: 90%; max-width: 450px; }
+
+button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; padding: 12px; transition: 0.2s; }
+button:active { transform: scale(0.95); }
+.btn-punch-in { background: var(--suc); color: white; width: 100%; height: 60px; font-size: 18px; }
+.btn-punch-out { background: var(--dan); color: white; width: 100%; height: 60px; font-size: 18px; }
+.btn-pri { background: var(--pri); color: white; width: 100%; }
+.btn-sec { background: #555; color: white; width: 100%; }
+.btn-blue { background: #3498db; color: white; width: 90%; margin: 10px; }
+.btn-orange { background: #e67e22; color: white; width: 90%; margin-bottom: 10px; }
+
+.table-wrap { overflow-x: auto; background: white; border-radius: 10px; margin-top: 15px; }
+table { width: 100%; color: #333; border-collapse: collapse; font-size: 11px; }
+th, td { padding: 8px; border: 1px solid #ddd; text-align: center; }
+.amt-sub { display: block; font-size: 10px; color: #27ae60; font-weight: bold; }
+
+.cal-container { background: white !important; color: #333; padding: 20px !important; }
+.cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.cal-title { font-size: 1.2rem; font-weight: bold; color: var(--bg); }
+.cal-nav-btn { background: #f0f0f0; color: #333; padding: 5px 15px; }
+.cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); font-weight: bold; font-size: 11px; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; border-radius: 50%; }
+.day:hover { background: #f0f0f0; }
+.cal-sunday { color: var(--dan); font-weight: bold; }
+.cal-present { background: var(--suc); color: white; }
+.cal-sun-att { background: #3498db; color: white; }
+
+.detail-card { background: rgba(0,0,0,0.4) !important; border: 1px solid var(--pri); text-align: left !important; }
+.detail-card h4 { margin: 0 0 10px 0; border-bottom: 1px solid #555; padding-bottom: 5px; color: var(--pri); }
+.detail-item { background: rgba(255,255,255,0.1); padding: 8px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; }
+
+input, select { width: 90%; padding: 10px; margin: 5px 0; border-radius: 8px; border: none; }
+.m-box { background: white; color: black; margin: 15px auto; padding: 15px; border-radius: 8px; text-align: left; border-left: 5px solid var(--pri); }
+.face-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:2000; flex-direction:column; align-items:center; justify-content:center; }
+video { border-radius: 50%; border: 4px solid var(--pri); object-fit: cover; }
