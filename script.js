@@ -136,7 +136,7 @@ function renderSalary() {
 }
 
 async function loadAI() {
-    const URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+    const URL = "https://justadudewhohacks.github.io/face-api.js/models";
     try {
         await faceapi.nets.ssdMobilenetv1.loadFromUri(URL);
         await faceapi.nets.faceLandmark68Net.loadFromUri(URL);
@@ -145,6 +145,17 @@ async function loadAI() {
     } catch(e) { console.log("AI Load Error"); }
 }
 loadAI();
+async function loadAI() {
+    const URL = "https://justadudewhohacks.github.io/face-api.js/models";
+
+    await faceapi.nets.tinyFaceDetector.loadFromUri(URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(URL);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(URL);
+
+    faceLoaded = true;
+
+    alert("✅ AI Loaded Successfully");
+}
 
 async function syncMembers() {
     try {
