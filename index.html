@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CHALAPATHI ERP v5.3</title>
     <link rel="stylesheet" href="style.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 </head>
 <body>
 
@@ -20,18 +19,25 @@
     <a id="delLink" onclick="go('deletedHistory')" style="display:none; color:#e74c3c;">🗑️ Deleted History</a>
 </nav>
 
-<div id="faceModal" class="face-modal">
-    <h2 id="camStatus">Align Face</h2>
-    <video id="video" autoplay muted playsinline width="300" height="300"></video>
-    <button onclick="stopCam()" class="btn-sec">Cancel</button>
+<div id="punchModal" class="face-modal">
+    <div class="card" style="background: white; color: black; padding: 20px;">
+        <h3 id="punchStatus">Confirm Punch</h3>
+        <p id="punchTargetName" style="font-size: 1.2rem; font-weight: bold; color: #1a2a6c;"></p>
+        <div style="display:flex; gap:10px;">
+            <button id="confirmPunchBtn" class="btn-punch-in" style="flex:1">Confirm</button>
+            <button onclick="document.getElementById('punchModal').style.display='none'" class="btn-sec" style="flex:1">Cancel</button>
+        </div>
+    </div>
 </div>
 
 <div id="home" class="page active">
     <h1>CHALAPATHI</h1>
     <div class="card">
-        <button onclick="startFace('in')" class="btn-punch-in">PUNCH IN</button>
-        <div style="height:15px"></div>
-        <button onclick="startFace('out')" class="btn-punch-out">PUNCH OUT</button>
+        <input type="number" id="manualId" placeholder="Enter Staff ID (e.g. 101)" style="text-align:center; font-size:1.5rem; width: 90%; padding:10px; border-radius:8px;">
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button onclick="verifyPunch('in')" class="btn-punch-in" style="flex:1">PUNCH IN</button>
+            <button onclick="verifyPunch('out')" class="btn-punch-out" style="flex:1">PUNCH OUT</button>
+        </div>
     </div>
 </div>
 
@@ -45,9 +51,7 @@
     <div class="card cal-container">
         <div class="cal-header">
             <button onclick="changeMonth(-1)" class="cal-nav-btn">◀</button>
-            <div class="cal-title">
-                <span id="calMonthLabel"></span> <span id="calYearLabel"></span>
-            </div>
+            <div class="cal-title"><span id="calMonthLabel"></span> <span id="calYearLabel"></span></div>
             <button onclick="changeMonth(1)" class="cal-nav-btn">▶</button>
         </div>
         <div class="cal-weekdays">
@@ -63,7 +67,6 @@
 
 <div id="salary" class="page">
     <h3>Financial Management</h3>
-    
     <div class="card" style="text-align: left;">
         <h4 style="margin:0 0 10px 0">Add Transaction</h4>
         <input type="text" id="finReason" placeholder="Reason (e.g. Tea, Bonus, Fuel)">
@@ -73,7 +76,6 @@
             <button onclick="addFinEntry('expense')" style="background:var(--dan); flex:1; color:white;">- Expense</button>
         </div>
     </div>
-
     <div class="table-wrap"><table id="salaryTable"></table></div>
 </div>
 
@@ -112,21 +114,29 @@
 
 <div id="addMember" class="page">
     <div class="card">
+        <h3>Staff Admission</h3>
         <input id="regName" placeholder="Staff Name">
-        <button onclick="startFace('register')" class="btn-punch-in">Save Face</button>
-        <button onclick="go('admin')" class="btn-sec">Back</button>
+        <button onclick="saveNewStaff()" class="btn-punch-in">Save Staff Member</button>
+        <button onclick="go('admin')" class="btn-sec" style="margin-top:10px">Back</button>
+    </div>
+    <div class="table-wrap" style="margin-top:20px; padding:10px;">
+        <h4 style="color:#333">ID Reference Table</h4>
+        <table id="staffRegTable"></table>
     </div>
 </div>
 
 <div id="masterEdit" class="page">
+    <h3>Master Staff Edit</h3>
+    <div id="masterStaffList"></div>
+    <hr>
     <h3>Master Record Edit</h3>
     <button onclick="addManualRow('work')" class="btn-blue">➕ Add New Work Row</button>
-    <div id="masterWorkList"></div>
+    <div id="masterWorkList" style="margin-top:10px;"></div>
     <hr>
     <h3>Master Finance Edit</h3>
     <button onclick="addManualRow('fin')" class="btn-blue">➕ Add New Finance Row</button>
-    <div id="masterFinList"></div>
-    <button onclick="go('admin')" class="btn-sec">Back</button>
+    <div id="masterFinList" style="margin-top:10px;"></div>
+    <button onclick="go('admin')" class="btn-sec" style="margin-top:20px;">Back</button>
 </div>
 
 <script src="script.js"></script>

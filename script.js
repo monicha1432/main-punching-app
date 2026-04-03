@@ -1,14 +1,20 @@
-// --- CORE DATA ---
 let recs = JSON.parse(localStorage.getItem('ch_recs') || "[]");
 let finEntries = JSON.parse(localStorage.getItem('ch_fin') || "[]");
 let delRecs = JSON.parse(localStorage.getItem('ch_del_recs') || "[]");
 let delFin = JSON.parse(localStorage.getItem('ch_del_fin') || "[]");
 let mSal = parseFloat(localStorage.getItem('ch_msal') || 0);
 let otR = parseFloat(localStorage.getItem('ch_ot') || 0);
-let faceLoaded = false, labeledFaces = [];
+let localStaffList = [];
 
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 let viewDate = new Date();
+
+function save() { 
+    localStorage.setItem('ch_recs', JSON.stringify(recs)); 
+    localStorage.setItem('ch_fin', JSON.stringify(finEntries)); 
+    localStorage.setItem('ch_del_recs', JSON.stringify(delRecs)); 
+    localStorage.setItem('ch_del_fin', JSON.stringify(delFin)); 
+}
 
 function toggleMenu() {
     let m = document.getElementById('menu');
@@ -24,6 +30,7 @@ function go(id) {
     if(id === 'salary') renderSalary();
     if(id === 'masterEdit') renderMaster();
     if(id === 'deletedHistory') renderDeleted();
+    if(id === 'addMember') syncMembers();
 }
 
 function login() { 
@@ -34,82 +41,111 @@ function login() {
     } else { alert("Invalid Credentials"); }
 }
 
-function save() { 
-    localStorage.setItem('ch_recs', JSON.stringify(recs)); 
-    localStorage.setItem('ch_fin', JSON.stringify(finEntries)); 
-    localStorage.setItem('ch_del_recs', JSON.stringify(delRecs)); 
-    localStorage.setItem('ch_del_fin', JSON.stringify(delFin)); 
+// --- STAFF MANAGEMENT ---
+async function syncMembers() {
+    try {
+        const res = await fetch('api.php?action=getMembers');
+        localStaffList = await res.json();
+        renderStaffTables();
+    } catch(e) { console.log("Sync Error"); }
 }
 
-// --- NEW FUNCTION: ADD INCOME/EXPENSE ---
+function renderStaffTables() {
+    // FIX 1: Staff ID Column added to admission table
+    let regHtml = `<tr><th>ID</th><th>Staff Name</th></tr>`;
+    localStaffList.forEach((s, i) => {
+        regHtml += `<tr><td><b>${i + 101}</b></td><td>${s.name}</td></tr>`;
+    });
+    let staffTab = document.getElementById('staffRegTable');
+    if(staffTab) staffTab.innerHTML = regHtml;
+
+    let masterHtml = "";
+    localStaffList.forEach((s, i) => {
+        masterHtml += `<div class="m-box">
+            <label>Staff ID: ${i + 101}</label>
+            <input type="text" onchange="updateStaffName(${i}, this.value)" value="${s.name}">
+            <button onclick="deleteStaff(${i})" style="background:var(--dan);color:white;width:100%;margin-top:10px;padding:8px;border-radius:5px;">Delete Staff</button>
+        </div>`;
+    });
+    let masterDiv = document.getElementById('masterStaffList');
+    if(masterDiv) masterDiv.innerHTML = masterHtml;
+}
+
+async function saveNewStaff() {
+    const name = document.getElementById('regName').value;
+    if(!name) return alert("Enter Name");
+    const res = await fetch('api.php?action=saveMember', { 
+        method:'POST', 
+        body: JSON.stringify({name: name}) 
+    });
+    document.getElementById('regName').value = '';
+    await syncMembers(); 
+    alert("Staff Registered!");
+}
+
+async function updateStaffName(index, newName) {
+    localStaffList[index].name = newName;
+    await saveStaffUpdate();
+}
+
+async function deleteStaff(index) {
+    if(confirm("Permanently delete this staff member?")) {
+        localStaffList.splice(index, 1);
+        await saveStaffUpdate();
+    }
+}
+
+async function saveStaffUpdate() {
+    await fetch('api.php?action=updateAll', { method:'POST', body: JSON.stringify(localStaffList) });
+    syncMembers();
+}
+
+// --- PUNCHING LOGIC ---
+function verifyPunch(mode) {
+    const idInput = document.getElementById('manualId').value;
+    const index = parseInt(idInput) - 101;
+    
+    if(localStaffList[index]) {
+        const staffName = localStaffList[index].name;
+        document.getElementById('punchModal').style.display = 'flex';
+        document.getElementById('punchTargetName').innerText = staffName;
+        document.getElementById('confirmPunchBtn').onclick = () => {
+            doPunch(mode, staffName);
+            document.getElementById('punchModal').style.display = 'none';
+            document.getElementById('manualId').value = '';
+        };
+    } else {
+        alert("ID not found!");
+    }
+}
+
+function doPunch(mode, name) {
+    let d = new Date().toDateString(), t = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    if(mode === 'in') { 
+        recs.push({ name, date: d, inT: t, outT: '--', hrs: 0, ot: 0, rawIn: Date.now() }); 
+    } else {
+        let r = recs.find(x => x.name === name && x.date === d && x.outT === '--');
+        if(!r) return alert("No Punch In found for today.");
+        r.outT = t; 
+        r.hrs = ((Date.now() - r.rawIn) / 3600000).toFixed(2);
+    }
+    save(); alert("Success: " + name);
+}
+
+// --- FINANCE & WORK LOGS ---
 function addFinEntry(type) {
     const reason = document.getElementById('finReason').value;
     const amt = parseFloat(document.getElementById('finAmt').value);
     const date = new Date().toDateString();
-
-    if(!reason || isNaN(amt)) return alert("Please enter reason and valid amount.");
-
+    if(!reason || isNaN(amt)) return alert("Invalid inputs.");
     finEntries.push({ date, type, reason, amt });
-    save();
-    
-    // Clear inputs and refresh
-    document.getElementById('finReason').value = '';
-    document.getElementById('finAmt').value = '';
-    renderSalary();
-    alert("Transaction added!");
-}
-
-// --- CALENDAR LOGIC ---
-function changeMonth(offset) {
-    viewDate.setMonth(viewDate.getMonth() + offset);
-    renderCalendar();
-}
-
-function renderCalendar() {
-    const m = viewDate.getMonth(), y = viewDate.getFullYear();
-    const grid = document.getElementById('calGrid');
-    document.getElementById('calMonthLabel').innerText = months[m];
-    document.getElementById('calYearLabel').innerText = y;
-    grid.innerHTML = '';
-    const firstDay = new Date(y, m, 1).getDay();
-    const daysInMonth = new Date(y, m + 1, 0).getDate();
-    for(let i = 0; i < firstDay; i++) grid.innerHTML += `<div></div>`;
-    for(let d = 1; d <= daysInMonth; d++) {
-        let dateObj = new Date(y, m, d);
-        let dateStr = dateObj.toDateString();
-        let isSunday = dateObj.getDay() === 0;
-        let hasAttended = recs.some(r => r.date === dateStr);
-        let statusClass = "";
-        if (isSunday && hasAttended) statusClass = "cal-sun-att";
-        else if (hasAttended) statusClass = "cal-present";
-        else if (isSunday) statusClass = "cal-sunday";
-        grid.innerHTML += `<div class="day ${statusClass}" onclick="showDayDetails('${dateStr}')">${d}</div>`;
-    }
-}
-
-function showDayDetails(dateStr) {
-    const detailDiv = document.getElementById('dayDetails');
-    const content = document.getElementById('detailContent');
-    document.getElementById('detailDate').innerText = "Records for: " + dateStr;
-    let dayRecs = recs.filter(r => r.date === dateStr);
-    let dayFins = finEntries.filter(f => f.date === dateStr);
-    let html = "";
-    if(!dayRecs.length && !dayFins.length) html = "<i>No activities found.</i>";
-    dayRecs.forEach(r => {
-        let ot = (parseFloat(r.hrs) > 8) ? (parseFloat(r.hrs) - 8).toFixed(2) : 0;
-        html += `<div class="detail-item"><b>👤 ${r.name}</b><br>In: ${r.inT} | Out: ${r.outT}<br>Work: ${r.hrs}h | OT: ${ot}h</div>`;
-    });
-    dayFins.forEach(f => {
-        let color = f.type === 'salary' ? '#2ecc71' : '#e74c3c';
-        html += `<div style="color:${color}; margin-top:5px;"><b>${f.type.toUpperCase()}:</b> ${f.reason} (₹${f.amt})</div>`;
-    });
-    content.innerHTML = html;
-    detailDiv.style.display = "block";
+    save(); renderSalary();
+    document.getElementById('finReason').value = ''; document.getElementById('finAmt').value = '';
 }
 
 function renderWork() {
     let h = `<tr><th>Name</th><th>Date</th><th>In/Out</th><th>Total Hrs</th><th>Work (8h)</th><th>OT Hrs</th></tr>`;
-    recs.forEach(r => {
+    recs.slice().reverse().forEach(r => {
         let totalHrs = parseFloat(r.hrs || 0), workHrs = totalHrs > 8 ? 8 : totalHrs, otHrs = totalHrs > 8 ? (totalHrs - 8) : 0;
         let workPay = (mSal / 26), otPay = otHrs * otR;
         h += `<tr><td>${r.name}</td><td>${r.date}</td><td>${r.inT}<br>${r.outT}</td><td><b>${totalHrs.toFixed(2)}h</b></td>
@@ -135,105 +171,68 @@ function renderSalary() {
     document.getElementById('salaryTable').innerHTML = h;
 }
 
-async function loadAI() {
-    const URL = "https://justadudewhohacks.github.io/face-api.js/models";
-    try {
-        await faceapi.nets.ssdMobilenetv1.loadFromUri(URL);
-        await faceapi.nets.faceLandmark68Net.loadFromUri(URL);
-        await faceapi.nets.faceRecognitionNet.loadFromUri(URL);
-        faceLoaded = true; syncMembers();
-    } catch(e) { console.log("AI Load Error"); }
-}
-loadAI();
-async function loadAI() {
-    const URL = "https://justadudewhohacks.github.io/face-api.js/models";
-
-    await faceapi.nets.tinyFaceDetector.loadFromUri(URL);
-    await faceapi.nets.faceLandmark68Net.loadFromUri(URL);
-    await faceapi.nets.faceRecognitionNet.loadFromUri(URL);
-
-    faceLoaded = true;
-
-    alert("✅ AI Loaded Successfully");
-}
-
-async function syncMembers() {
-    try {
-        const res = await fetch('api.php?action=getMembers');
-        const data = await res.json();
-        labeledFaces = data.map(d => new faceapi.LabeledFaceDescriptors(d.name, [new Float32Array(d.descriptors)]));
-    } catch(e) {}
-}
-
-async function startFace(mode) {
-    if(!faceLoaded) return alert("AI Models Loading...");
-    document.getElementById('faceModal').style.display='flex';
-    const video = document.getElementById('video');
-    const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-    video.srcObject = stream;
-    const interval = setInterval(async () => {
-        const detect = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
-        if(detect) {
-            if(mode === 'register') { clearInterval(interval); saveStaff(detect.descriptor); }
-            else {
-                const matcher = new faceapi.FaceMatcher(labeledFaces, 0.6);
-                const match = matcher.findBestMatch(detect.descriptor);
-                if(match.label !== 'unknown') { clearInterval(interval); doPunch(mode, match.label); }
-            }
-        }
-    }, 1000);
-}
-
-function stopCam() {
-    let v = document.getElementById('video');
-    if(v.srcObject) v.srcObject.getTracks().forEach(t => t.stop());
-    document.getElementById('faceModal').style.display='none';
-}
-
-function doPunch(mode, name) {
-    stopCam();
-    let d = new Date().toDateString(), t = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    if(mode === 'in') { recs.push({ name, date: d, inT: t, outT: '--', hrs: 0, ot: 0, rawIn: Date.now() }); }
-    else {
-        let r = recs.find(x => x.name === name && x.date === d);
-        if(!r) return alert("No Punch In found.");
-        r.outT = t; r.hrs = ((Date.now() - r.rawIn) / 3600000).toFixed(2);
+// --- CALENDAR ---
+function changeMonth(offset) { viewDate.setMonth(viewDate.getMonth() + offset); renderCalendar(); }
+function renderCalendar() {
+    const m = viewDate.getMonth(), y = viewDate.getFullYear();
+    const grid = document.getElementById('calGrid');
+    document.getElementById('calMonthLabel').innerText = months[m];
+    document.getElementById('calYearLabel').innerText = y;
+    grid.innerHTML = '';
+    const firstDay = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    for(let i = 0; i < firstDay; i++) grid.innerHTML += `<div></div>`;
+    for(let d = 1; d <= daysInMonth; d++) {
+        let dStr = new Date(y, m, d).toDateString();
+        let isSun = new Date(y, m, d).getDay() === 0;
+        let present = recs.some(r => r.date === dStr);
+        let cls = isSun ? (present ? "cal-sun-att" : "cal-sunday") : (present ? "cal-present" : "");
+        grid.innerHTML += `<div class="day ${cls}" onclick="showDayDetails('${dStr}')">${d}</div>`;
     }
-    save(); alert("Success: " + name);
 }
 
-async function saveStaff(desc) {
-    const name = document.getElementById('regName').value;
-    if(!name) return alert("Enter Name");
-    await fetch('api.php?action=saveMember', { method:'POST', body: JSON.stringify({name, descriptors: Array.from(desc)}) });
-    stopCam(); syncMembers(); go('admin');
+function showDayDetails(dateStr) {
+    const content = document.getElementById('detailContent');
+    document.getElementById('detailDate').innerText = dateStr;
+    let dayRecs = recs.filter(r => r.date === dateStr);
+    let dayFins = finEntries.filter(f => f.date === dateStr);
+    let html = "";
+    dayRecs.forEach(r => html += `<div class="detail-item"><b>👤 ${r.name}</b><br>${r.inT} - ${r.outT} (${r.hrs}h)</div>`);
+    dayFins.forEach(f => html += `<div style="color:${f.type==='salary'?'#2ecc71':'#e74c3c'}">${f.reason} (₹${f.amt})</div>`);
+    content.innerHTML = html || "<i>No Records</i>";
+    document.getElementById('dayDetails').style.display = "block";
 }
 
+// FIX 3: ADD MANUAL ROW FUNCTION
 function addManualRow(type) {
-    if(type === 'work') recs.unshift({ name: "New Staff", date: new Date().toDateString(), inT: "09:00 AM", outT: "06:00 PM", hrs: 9, ot: 1, rawIn: Date.now() });
-    else finEntries.unshift({ date: new Date().toDateString(), type: "salary", reason: "Bonus/Exp", amt: 0 });
-    save(); renderMaster();
+    if(type === 'work') {
+        recs.push({ name: "New Staff", date: new Date().toDateString(), inT: "09:00 AM", outT: "05:00 PM", hrs: "8.00", rawIn: Date.now() });
+    } else {
+        finEntries.push({ date: new Date().toDateString(), type: "expense", reason: "Manual Entry", amt: 0 });
+    }
+    save(); // FIX 2: Ensuring data stores after adding row
+    renderMaster();
 }
 
+// --- MASTER EDIT ---
 function renderMaster() {
+    renderStaffTables();
     let wL = document.getElementById('masterWorkList'); wL.innerHTML = '';
     recs.forEach((r, i) => {
-        wL.innerHTML += `<div class="m-box"><label>Name</label><input type="text" onchange="updateW(${i},'name',this.value)" value="${r.name}"><label>Date</label><input type="text" onchange="updateW(${i},'date',this.value)" value="${r.date}"><div style="display:flex; gap:5px"><div><label>In</label><input type="text" onchange="updateW(${i},'inT',this.value)" value="${r.inT}"></div><div><label>Out</label><input type="text" onchange="updateW(${i},'outT',this.value)" value="${r.outT}"></div></div><div><label>Hours</label><input type="number" onchange="updateW(${i},'hrs',this.value)" value="${r.hrs}"></div><button onclick="deleteWork(${i})" style="background:red;color:white;width:100%;margin-top:10px">Delete Row</button></div>`;
+        wL.innerHTML += `<div class="m-box"><label>Name</label><input type="text" onchange="updateW(${i},'name',this.value)" value="${r.name}"><label>Date</label><input type="text" onchange="updateW(${i},'date',this.value)" value="${r.date}"><div style="display:flex; gap:5px"><div><label>In</label><input type="text" onchange="updateW(${i},'inT',this.value)" value="${r.inT}"></div><div><label>Out</label><input type="text" onchange="updateW(${i},'outT',this.value)" value="${r.outT}"></div></div><label>Hrs</label><input type="number" onchange="updateW(${i},'hrs',this.value)" value="${r.hrs}"><button onclick="deleteWork(${i})" style="background:red;color:white;width:100%;margin-top:10px">Delete</button></div>`;
     });
     let fL = document.getElementById('masterFinList'); fL.innerHTML = '';
     finEntries.forEach((e, i) => {
-        fL.innerHTML += `<div class="m-box" style="border-left-color:${e.type==='salary'?'green':'red'}"><label>Reason</label><input type="text" onchange="updateF(${i},'reason',this.value)" value="${e.reason}"><label>Amount (₹)</label><input type="number" onchange="updateF(${i},'amt',this.value)" value="${e.amt}"><label>Type</label><select onchange="updateF(${i},'type',this.value)"><option value="salary" ${e.type==='salary'?'selected':''}>Salary (+)</option><option value="expense" ${e.type==='expense'?'selected':''}>Expense (-)</option></select><button onclick="deleteFin(${i})" style="background:red;color:white;width:100%;margin-top:10px">Delete Row</button></div>`;
+        fL.innerHTML += `<div class="m-box" style="border-left-color:${e.type==='salary'?'green':'red'}"><label>Reason</label><input type="text" onchange="updateF(${i},'reason',this.value)" value="${e.reason}"><label>Amt</label><input type="number" onchange="updateF(${i},'amt',this.value)" value="${e.amt}"><button onclick="deleteFin(${i})" style="background:red;color:white;width:100%;margin-top:10px">Delete</button></div>`;
     });
 }
+
 function updateW(i, k, v) { recs[i][k] = v; save(); }
 function updateF(i, k, v) { finEntries[i][k] = (k==='amt')?parseFloat(v):v; save(); }
 function deleteWork(i) { delRecs.push(recs.splice(i, 1)[0]); save(); renderMaster(); }
 function deleteFin(i) { delFin.push(finEntries.splice(i, 1)[0]); save(); renderMaster(); }
-function saveRates() { 
-    mSal = parseFloat(document.getElementById('setSal').value);
-    otR = parseFloat(document.getElementById('setOT').value);
-    localStorage.setItem('ch_msal', mSal); localStorage.setItem('ch_ot', otR); alert("Updated"); 
-}
+function saveRates() { mSal = parseFloat(document.getElementById('setSal').value); otR = parseFloat(document.getElementById('setOT').value); localStorage.setItem('ch_msal', mSal); localStorage.setItem('ch_ot', otR); alert("Updated"); }
+
 function renderDeleted() {
     let hW = `<tr><th>Name</th><th>Date</th><th>Action</th></tr>`;
     delRecs.forEach((r, i) => hW += `<tr><td>${r.name}</td><td>${r.date}</td><td><button onclick="restoreWork(${i})" style="background:green;color:white;padding:4px">Restore</button></td></tr>`);
@@ -242,9 +241,11 @@ function renderDeleted() {
     delFin.forEach((e, i) => hF += `<tr><td>${e.reason}</td><td>${e.amt}</td><td><button onclick="restoreFin(${i})" style="background:green;color:white;padding:4px">Restore</button></td></tr>`);
     document.getElementById('delFinTable').innerHTML = hF;
 }
+
 function restoreWork(i) { recs.push(delRecs.splice(i, 1)[0]); save(); renderDeleted(); }
 function restoreFin(i) { finEntries.push(delFin.splice(i, 1)[0]); save(); renderDeleted(); }
 
 document.getElementById('setSal').value = mSal;
 document.getElementById('setOT').value = otR;
+syncMembers();
 renderCalendar();
