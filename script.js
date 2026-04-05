@@ -1,10 +1,11 @@
+// --- INITIAL DATA LOAD ---
 let recs = JSON.parse(localStorage.getItem('ch_recs') || "[]");
 let finEntries = JSON.parse(localStorage.getItem('ch_fin') || "[]");
 let delRecs = JSON.parse(localStorage.getItem('ch_del_recs') || "[]");
 let delFin = JSON.parse(localStorage.getItem('ch_del_fin') || "[]");
 let mSal = parseFloat(localStorage.getItem('ch_msal') || 0);
 let otR = parseFloat(localStorage.getItem('ch_ot') || 0);
-let localStaffList = [];
+let localStaffList = JSON.parse(localStorage.getItem('ch_staff') || "[]");
 
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 let viewDate = new Date();
@@ -14,6 +15,7 @@ function save() {
     localStorage.setItem('ch_fin', JSON.stringify(finEntries)); 
     localStorage.setItem('ch_del_recs', JSON.stringify(delRecs)); 
     localStorage.setItem('ch_del_fin', JSON.stringify(delFin)); 
+    localStorage.setItem('ch_staff', JSON.stringify(localStaffList)); 
 }
 
 function toggleMenu() {
@@ -30,93 +32,95 @@ function go(id) {
     if(id === 'salary') renderSalary();
     if(id === 'masterEdit') renderMaster();
     if(id === 'deletedHistory') renderDeleted();
-    if(id === 'addMember') syncMembers();
+    if(id === 'addMember') renderStaffTables();
 }
 
 function login() { 
-    if(document.getElementById('user').value==="monicha@143" && document.getElementById('pass').value==="monicha@1432") { 
-        document.getElementById('adminLogin').style.display='none'; 
-        document.getElementById('adminPanel').style.display='block'; 
-        document.getElementById('delLink').style.display='block';
-    } else { alert("Invalid Credentials"); }
+    const u = document.getElementById('user').value;
+    const p = document.getElementById('pass').value;
+    if(u === "monicha@143" && p === "monicha@1432") { 
+        document.getElementById('adminLogin').style.display = 'none'; 
+        document.getElementById('adminPanel').style.display = 'block'; 
+        document.getElementById('delLink').style.display = 'block';
+    } else { alert("Invalid Credentials!"); }
 }
 
-// --- STAFF MANAGEMENT ---
-async function syncMembers() {
-    try {
-        const res = await fetch('api.php?action=getMembers');
-        localStaffList = await res.json();
-        renderStaffTables();
-    } catch(e) { console.log("Sync Error"); }
-}
+// --- STAFF MANAGEMENT & MASTER EDIT (FIXED) ---
 
 function renderStaffTables() {
-    // FIX 1: Staff ID Column added to admission table
+    // 1. Admission Page Reference Table
     let regHtml = `<tr><th>ID</th><th>Staff Name</th></tr>`;
-    localStaffList.forEach((s, i) => {
-        regHtml += `<tr><td><b>${i + 101}</b></td><td>${s.name}</td></tr>`;
+    localStaffList.forEach(s => {
+        regHtml += `<tr><td><b>${s.id}</b></td><td>${s.name}</td></tr>`;
     });
-    let staffTab = document.getElementById('staffRegTable');
-    if(staffTab) staffTab.innerHTML = regHtml;
+    document.getElementById('staffRegTable').innerHTML = regHtml;
 
-    let masterHtml = "";
+    // 2. Master Staff Edit Section (with Rows/Columns)
+    let masterHtml = `<button onclick="addNewStaffRow()" class="btn-blue" style="margin-bottom:15px;">➕ Add New Staff Row</button>`;
     localStaffList.forEach((s, i) => {
-        masterHtml += `<div class="m-box">
-            <label>Staff ID: ${i + 101}</label>
-            <input type="text" onchange="updateStaffName(${i}, this.value)" value="${s.name}">
-            <button onclick="deleteStaff(${i})" style="background:var(--dan);color:white;width:100%;margin-top:10px;padding:8px;border-radius:5px;">Delete Staff</button>
+        masterHtml += `
+        <div class="m-box" style="background:white; color:black; padding:15px; margin-bottom:10px; border-radius:8px; border-left: 5px solid #3498db;">
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1">
+                    <label style="font-size:10px; color:#666;">Staff ID</label>
+                    <input type="number" value="${s.id}" onchange="updateStaffData(${i}, 'id', this.value)" style="width:100%; padding:8px; border:1px solid #ddd;">
+                </div>
+                <div style="flex:2">
+                    <label style="font-size:10px; color:#666;">Staff Name</label>
+                    <input type="text" value="${s.name}" onchange="updateStaffData(${i}, 'name', this.value)" style="width:100%; padding:8px; border:1px solid #ddd;">
+                </div>
+            </div>
+            <button onclick="deleteStaff(${i})" style="background:#e74c3c; color:white; width:100%; margin-top:10px; padding:8px; border-radius:5px;">Delete Member</button>
         </div>`;
     });
-    let masterDiv = document.getElementById('masterStaffList');
-    if(masterDiv) masterDiv.innerHTML = masterHtml;
+    document.getElementById('masterStaffList').innerHTML = masterHtml;
 }
 
-async function saveNewStaff() {
-    const name = document.getElementById('regName').value;
-    if(!name) return alert("Enter Name");
-    const res = await fetch('api.php?action=saveMember', { 
-        method:'POST', 
-        body: JSON.stringify({name: name}) 
-    });
-    document.getElementById('regName').value = '';
-    await syncMembers(); 
-    alert("Staff Registered!");
+function addNewStaffRow() {
+    const nextId = localStaffList.length > 0 ? Math.max(...localStaffList.map(s => parseInt(s.id))) + 1 : 101;
+    localStaffList.push({ id: nextId, name: "New Staff" });
+    save();
+    renderMaster();
 }
 
-async function updateStaffName(index, newName) {
-    localStaffList[index].name = newName;
-    await saveStaffUpdate();
+function saveNewStaff() {
+    const nameBox = document.getElementById('regName');
+    if(!nameBox.value.trim()) return alert("Enter Name");
+    const nextId = localStaffList.length > 0 ? Math.max(...localStaffList.map(s => parseInt(s.id))) + 1 : 101;
+    localStaffList.push({ id: nextId, name: nameBox.value.trim() });
+    save();
+    nameBox.value = '';
+    renderStaffTables();
 }
 
-async function deleteStaff(index) {
-    if(confirm("Permanently delete this staff member?")) {
+function updateStaffData(index, key, value) {
+    if(key === 'id') value = parseInt(value);
+    localStaffList[index][key] = value;
+    save();
+    renderStaffTables();
+}
+
+function deleteStaff(index) {
+    if(confirm("Delete this staff member?")) {
         localStaffList.splice(index, 1);
-        await saveStaffUpdate();
+        save();
+        renderStaffTables();
     }
-}
-
-async function saveStaffUpdate() {
-    await fetch('api.php?action=updateAll', { method:'POST', body: JSON.stringify(localStaffList) });
-    syncMembers();
 }
 
 // --- PUNCHING LOGIC ---
 function verifyPunch(mode) {
-    const idInput = document.getElementById('manualId').value;
-    const index = parseInt(idInput) - 101;
-    
-    if(localStaffList[index]) {
-        const staffName = localStaffList[index].name;
+    const idInput = parseInt(document.getElementById('manualId').value);
+    const staff = localStaffList.find(s => parseInt(s.id) === idInput);
+    if(staff) {
         document.getElementById('punchModal').style.display = 'flex';
-        document.getElementById('punchTargetName').innerText = staffName;
+        document.getElementById('punchTargetName').innerText = staff.name;
         document.getElementById('confirmPunchBtn').onclick = () => {
-            doPunch(mode, staffName);
+            doPunch(mode, staff.name);
             document.getElementById('punchModal').style.display = 'none';
             document.getElementById('manualId').value = '';
         };
-    } else {
-        alert("ID not found!");
-    }
+    } else { alert("ID not found!"); }
 }
 
 function doPunch(mode, name) {
@@ -125,22 +129,44 @@ function doPunch(mode, name) {
         recs.push({ name, date: d, inT: t, outT: '--', hrs: 0, ot: 0, rawIn: Date.now() }); 
     } else {
         let r = recs.find(x => x.name === name && x.date === d && x.outT === '--');
-        if(!r) return alert("No Punch In found for today.");
+        if(!r) return alert("No Punch In found.");
         r.outT = t; 
         r.hrs = ((Date.now() - r.rawIn) / 3600000).toFixed(2);
     }
     save(); alert("Success: " + name);
 }
 
-// --- FINANCE & WORK LOGS ---
-function addFinEntry(type) {
-    const reason = document.getElementById('finReason').value;
-    const amt = parseFloat(document.getElementById('finAmt').value);
-    const date = new Date().toDateString();
-    if(!reason || isNaN(amt)) return alert("Invalid inputs.");
-    finEntries.push({ date, type, reason, amt });
-    save(); renderSalary();
-    document.getElementById('finReason').value = ''; document.getElementById('finAmt').value = '';
+// --- MASTER DATA RENDERING ---
+function renderMaster() {
+    renderStaffTables(); // This now includes the "Add Row" button
+    
+    // Work Records Table
+    let wL = document.getElementById('masterWorkList'); wL.innerHTML = '';
+    recs.forEach((r, i) => {
+        wL.innerHTML += `<div class="m-box" style="background:white; color:black; padding:15px; margin-bottom:10px; border-radius:8px;"><label>Name</label><input type="text" onchange="updateW(${i},'name',this.value)" value="${r.name}" style="width:90%; padding:8px;"><label>Date</label><input type="text" onchange="updateW(${i},'date',this.value)" value="${r.date}" style="width:90%; padding:8px;"><div style="display:flex; gap:5px"><div><label>In</label><input type="text" onchange="updateW(${i},'inT',this.value)" value="${r.inT}" style="width:80%; padding:8px;"></div><div><label>Out</label><input type="text" onchange="updateW(${i},'outT',this.value)" value="${r.outT}" style="width:80%; padding:8px;"></div></div><label>Hrs</label><input type="number" onchange="updateW(${i},'hrs',this.value)" value="${r.hrs}" style="width:90%; padding:8px;"><button onclick="deleteWork(${i})" style="background:red;color:white;width:100%;margin-top:10px; padding:10px; border-radius:5px;">Delete</button></div>`;
+    });
+
+    // Finance Records Table
+    let fL = document.getElementById('masterFinList'); fL.innerHTML = '';
+    finEntries.forEach((e, i) => {
+        fL.innerHTML += `<div class="m-box" style="background:white; color:black; padding:15px; margin-bottom:10px; border-radius:8px; border-left: 5px solid ${e.type==='salary'?'green':'red'}"><label>Reason</label><input type="text" onchange="updateF(${i},'reason',this.value)" value="${e.reason}" style="width:90%; padding:8px;"><label>Amt</label><input type="number" onchange="updateF(${i},'amt',this.value)" value="${e.amt}" style="width:90%; padding:8px;"><button onclick="deleteFin(${i})" style="background:red;color:white;width:100%;margin-top:10px; padding:10px; border-radius:5px;">Delete</button></div>`;
+    });
+}
+
+// --- OTHER UTILITIES ---
+function updateW(i, k, v) { recs[i][k] = v; save(); }
+function updateF(i, k, v) { finEntries[i][k] = (k==='amt')?parseFloat(v):v; save(); }
+function deleteWork(i) { delRecs.push(recs.splice(i, 1)[0]); save(); renderMaster(); }
+function deleteFin(i) { delFin.push(finEntries.splice(i, 1)[0]); save(); renderMaster(); }
+function saveRates() { mSal = parseFloat(document.getElementById('setSal').value); otR = parseFloat(document.getElementById('setOT').value); localStorage.setItem('ch_msal', mSal); localStorage.setItem('ch_ot', otR); alert("Updated"); }
+
+function addManualRow(type) {
+    if(type === 'work') {
+        recs.push({ name: "New Staff", date: new Date().toDateString(), inT: "09:00 AM", outT: "05:00 PM", hrs: "8.00", rawIn: Date.now() });
+    } else {
+        finEntries.push({ date: new Date().toDateString(), type: "expense", reason: "Manual Entry", amt: 0 });
+    }
+    save(); renderMaster();
 }
 
 function renderWork() {
@@ -171,11 +197,11 @@ function renderSalary() {
     document.getElementById('salaryTable').innerHTML = h;
 }
 
-// --- CALENDAR ---
 function changeMonth(offset) { viewDate.setMonth(viewDate.getMonth() + offset); renderCalendar(); }
 function renderCalendar() {
     const m = viewDate.getMonth(), y = viewDate.getFullYear();
     const grid = document.getElementById('calGrid');
+    if(!grid) return;
     document.getElementById('calMonthLabel').innerText = months[m];
     document.getElementById('calYearLabel').innerText = y;
     grid.innerHTML = '';
@@ -191,48 +217,6 @@ function renderCalendar() {
     }
 }
 
-function showDayDetails(dateStr) {
-    const content = document.getElementById('detailContent');
-    document.getElementById('detailDate').innerText = dateStr;
-    let dayRecs = recs.filter(r => r.date === dateStr);
-    let dayFins = finEntries.filter(f => f.date === dateStr);
-    let html = "";
-    dayRecs.forEach(r => html += `<div class="detail-item"><b>👤 ${r.name}</b><br>${r.inT} - ${r.outT} (${r.hrs}h)</div>`);
-    dayFins.forEach(f => html += `<div style="color:${f.type==='salary'?'#2ecc71':'#e74c3c'}">${f.reason} (₹${f.amt})</div>`);
-    content.innerHTML = html || "<i>No Records</i>";
-    document.getElementById('dayDetails').style.display = "block";
-}
-
-// FIX 3: ADD MANUAL ROW FUNCTION
-function addManualRow(type) {
-    if(type === 'work') {
-        recs.push({ name: "New Staff", date: new Date().toDateString(), inT: "09:00 AM", outT: "05:00 PM", hrs: "8.00", rawIn: Date.now() });
-    } else {
-        finEntries.push({ date: new Date().toDateString(), type: "expense", reason: "Manual Entry", amt: 0 });
-    }
-    save(); // FIX 2: Ensuring data stores after adding row
-    renderMaster();
-}
-
-// --- MASTER EDIT ---
-function renderMaster() {
-    renderStaffTables();
-    let wL = document.getElementById('masterWorkList'); wL.innerHTML = '';
-    recs.forEach((r, i) => {
-        wL.innerHTML += `<div class="m-box"><label>Name</label><input type="text" onchange="updateW(${i},'name',this.value)" value="${r.name}"><label>Date</label><input type="text" onchange="updateW(${i},'date',this.value)" value="${r.date}"><div style="display:flex; gap:5px"><div><label>In</label><input type="text" onchange="updateW(${i},'inT',this.value)" value="${r.inT}"></div><div><label>Out</label><input type="text" onchange="updateW(${i},'outT',this.value)" value="${r.outT}"></div></div><label>Hrs</label><input type="number" onchange="updateW(${i},'hrs',this.value)" value="${r.hrs}"><button onclick="deleteWork(${i})" style="background:red;color:white;width:100%;margin-top:10px">Delete</button></div>`;
-    });
-    let fL = document.getElementById('masterFinList'); fL.innerHTML = '';
-    finEntries.forEach((e, i) => {
-        fL.innerHTML += `<div class="m-box" style="border-left-color:${e.type==='salary'?'green':'red'}"><label>Reason</label><input type="text" onchange="updateF(${i},'reason',this.value)" value="${e.reason}"><label>Amt</label><input type="number" onchange="updateF(${i},'amt',this.value)" value="${e.amt}"><button onclick="deleteFin(${i})" style="background:red;color:white;width:100%;margin-top:10px">Delete</button></div>`;
-    });
-}
-
-function updateW(i, k, v) { recs[i][k] = v; save(); }
-function updateF(i, k, v) { finEntries[i][k] = (k==='amt')?parseFloat(v):v; save(); }
-function deleteWork(i) { delRecs.push(recs.splice(i, 1)[0]); save(); renderMaster(); }
-function deleteFin(i) { delFin.push(finEntries.splice(i, 1)[0]); save(); renderMaster(); }
-function saveRates() { mSal = parseFloat(document.getElementById('setSal').value); otR = parseFloat(document.getElementById('setOT').value); localStorage.setItem('ch_msal', mSal); localStorage.setItem('ch_ot', otR); alert("Updated"); }
-
 function renderDeleted() {
     let hW = `<tr><th>Name</th><th>Date</th><th>Action</th></tr>`;
     delRecs.forEach((r, i) => hW += `<tr><td>${r.name}</td><td>${r.date}</td><td><button onclick="restoreWork(${i})" style="background:green;color:white;padding:4px">Restore</button></td></tr>`);
@@ -247,5 +231,5 @@ function restoreFin(i) { finEntries.push(delFin.splice(i, 1)[0]); save(); render
 
 document.getElementById('setSal').value = mSal;
 document.getElementById('setOT').value = otR;
-syncMembers();
+renderStaffTables();
 renderCalendar();
